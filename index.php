@@ -40,9 +40,8 @@ require_once 'functions.php';
             </div>
             <div class="hero-visual">
                 <div class="illustration">
-                    <!-- Hero Illustration / Clinic Image Placeholder -->
-                    <img src="logo-removebg-preview.png" alt="FEU Tech Clinic" class="hero-logo">
-                    <!-- <div class="small muted" style="margin-top:12px;">Centered, friendly, and low-fatigue landing page layout</div> -->
+                    Hero Illustration / Clinic Image Placeholder
+                    <div class="small muted" style="margin-top:12px;">Centered, friendly, and low-fatigue landing page layout</div>
                 </div>
             </div>
         </div>

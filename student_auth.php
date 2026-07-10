@@ -20,21 +20,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'register') {
+        $register_role = ($tab === 'admin') ? 'admin' : 'student';
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+
         $student_number = trim($_POST['student_number'] ?? '');
         $full_name = trim($_POST['full_name'] ?? '');
         $course = trim($_POST['course'] ?? '');
         $contact_no = trim($_POST['contact_no'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
 
-        if ($student_number === '' || $full_name === '' || $course === '' || $email === '' || $password === '') {
-            $errors[] = 'Please complete all registration fields.';
+        if ($email === '' || $password === '') {
+            $errors[] = 'Please complete the required registration fields.';
         }
-        if (!preg_match('/^[A-Za-z0-9._%+-]+@fit\.edu\.ph$/i', $email)) {
+        if (!preg_match('/^[A-Za-z0-9._%+-]+@feutech\.edu\.ph$/i', $email)) {
             $errors[] = 'Use a valid FEU Tech school email address.';
         }
         if (strlen($password) < 6) {
             $errors[] = 'Password must be at least 6 characters.';
+        }
+
+        if ($register_role === 'student') {
+            if ($student_number === '' || $full_name === '' || $course === '') {
+                $errors[] = 'Please complete all student registration fields.';
+            }
         }
 
         if (!$errors) {
@@ -46,23 +54,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = 'Email is already registered.';
             } else {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $role = 'student';
 
                 $stmt = $mysqli->prepare('INSERT INTO users (role, email, password_hash, created_at) VALUES (?, ?, ?, NOW())');
-                $stmt->bind_param('sss', $role, $email, $hash);
+                $stmt->bind_param('sss', $register_role, $email, $hash);
                 if ($stmt->execute()) {
                     $user_id = $stmt->insert_id;
 
-                    $stmt2 = $mysqli->prepare('INSERT INTO students (student_id, student_number, full_name, course, contact_no) VALUES (?, ?, ?, ?, ?)');
-                    $stmt2->bind_param('issss', $user_id, $student_number, $full_name, $course, $contact_no);
-                    $stmt2->execute();
+                    if ($register_role === 'student') {
+                        $stmt2 = $mysqli->prepare('INSERT INTO students (student_id, student_number, full_name, course, contact_no) VALUES (?, ?, ?, ?, ?)');
+                        $stmt2->bind_param('issss', $user_id, $student_number, $full_name, $course, $contact_no);
+                        $stmt2->execute();
 
-                    $stmt3 = $mysqli->prepare('INSERT INTO patient_records (student_id, allergies, conditions, emergency_contact, updated_at) VALUES (?, "", "", "", NOW())');
-                    $stmt3->bind_param('i', $user_id);
-                    $stmt3->execute();
+                        $stmt3 = $mysqli->prepare('INSERT INTO patient_records (student_id, allergies, conditions, emergency_contact, updated_at) VALUES (?, "", "", "", NOW())');
+                        $stmt3->bind_param('i', $user_id);
+                        $stmt3->execute();
 
-                    set_flash('success', 'Registration successful. Please log in.');
-                    header('Location: student_auth.php');
+                        set_flash('success', 'Registration successful. Please log in.');
+                        header('Location: student_auth.php');
+                        exit;
+                    }
+
+                    $_SESSION['user_id'] = (int) $user_id;
+                    $_SESSION['role'] = 'admin';
+                    $_SESSION['email'] = $email;
+                    set_flash('success', 'Admin account created successfully.');
+                    header('Location: admin_dashboard.php');
                     exit;
                 }
                 $errors[] = 'Registration failed. Please try again.';
@@ -132,7 +148,7 @@ $flash = get_flash();
 <main class="container auth-wrap">
     <section class="auth-card">
         <h1 class="section-title" style="font-size:2rem;">Student Portal</h1>
-        <p class="help-text">Register using a school email and log in with your password.</p>
+        <p class="help-text"><?php echo $tab === 'admin' ? 'Create an admin account or log in to access the dashboard and clinic management features.' : 'Register using a school email and log in with your password.'; ?></p>
 
         <?php if ($flash): ?>
             <div class="flash <?= e($flash['type']) ?>"><?= e($flash['message']) ?></div>
@@ -187,7 +203,7 @@ $flash = get_flash();
                 </div>
                 <div class="field">
                     <label class="label">School Email</label>
-                    <input class="input" type="email" name="email" placeholder="name@fit.edu.ph" required>
+                    <input class="input" type="email" name="email" placeholder="name@feutech.edu.ph" required>
                 </div>
                 <div class="field">
                     <label class="label">Password</label>
@@ -196,19 +212,21 @@ $flash = get_flash();
                 <button class="btn-secondary" type="submit">Register</button>
             </form>
             <?php else: ?>
-            <div class="form-card">
-                <h2 class="card-title">Staff Login</h2>
-                <p class="help-text">Admin accounts are pre-seeded by the system owner.</p>
+            <form class="form-card" method="post" action="student_auth.php?tab=admin">
+                <input type="hidden" name="action" value="register">
+                <h2 class="card-title">Register Admin</h2>
+                <p class="help-text">Create a new admin account to access the dashboard and admin features.</p>
                 <div class="field">
                     <label class="label">Email</label>
-                    <input class="input" type="text" value="admin@fit.edu.ph" disabled>
+                    <input class="input" type="email" name="email" placeholder="name@feutech.edu.ph" required>
                 </div>
                 <div class="field">
                     <label class="label">Password</label>
-                    <input class="input" type="text" value="your admin password" disabled>
+                    <input class="input" type="password" name="password" placeholder="At least 6 characters" required>
                 </div>
-                <p class="help-text">Use the login form on the left with role set to Staff.</p>
-            </div>
+                <p class="help-text">After registration, you will be redirected to the Admin Dashboard automatically.</p>
+                <button class="btn-secondary" type="submit">Create Admin Account</button>
+            </form>
             <?php endif; ?>
         </div>
     </section>
